@@ -1,6 +1,6 @@
 # ⏱ Live Session Clock
 
-[![Live demo](https://img.shields.io/badge/Live_demo-live--session--clock.pages.dev-6366f1?style=for-the-badge&logo=cloudflare)](https://live-session-clock.pages.dev/)
+[![Live demo](https://img.shields.io/badge/Live_demo-Open_app-6366f1?style=for-the-badge&logo=cloudflare)](https://live-session-clock.coolmukky.workers.dev/)
 [![Deploy to GitHub Pages](https://github.com/coolmukky/live-session-clock/actions/workflows/deploy.yml/badge.svg)](https://github.com/coolmukky/live-session-clock/actions/workflows/deploy.yml)
 
 A live clock and **session-timer tool for facilitators, trainers, and hosts**.
@@ -11,7 +11,7 @@ when each section begins.
 Great for workshops, webinars, classes, standups, hackathons, exams, and any
 run-of-show that needs to stay on time.
 
-**▶ Try it live: [live-session-clock.pages.dev](https://live-session-clock.pages.dev/)**
+**▶ Try it live: [live-session-clock.coolmukky.workers.dev](https://live-session-clock.coolmukky.workers.dev/)**
 
 ![Live Session Clock — running dashboard with live clock, current-activity countdown, and synced agenda](docs/running.png)
 
@@ -131,9 +131,9 @@ The Vite `base` is `./` (relative), so the same build runs at a domain root or
 a sub-path — any static host works. Build command: `npm run build`, output
 directory: `dist`.
 
-**Cloudflare Pages (primary — [live-session-clock.pages.dev](https://live-session-clock.pages.dev/)):**
-connect this repo in the Cloudflare Pages dashboard with build command
-`npm run build` and output directory `dist`. Node version is pinned via
+**Cloudflare (primary — [live-session-clock.coolmukky.workers.dev](https://live-session-clock.coolmukky.workers.dev/)):**
+this repo is connected to a Cloudflare build with build command `npm run build`
+and output directory `dist`. Node version is pinned via
 [`.node-version`](.node-version); cache headers live in
 [`public/_headers`](public/_headers). Every push to `main` redeploys.
 
