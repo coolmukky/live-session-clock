@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { EngineSnapshot } from '../types';
 import { formatClock, formatDuration } from '../utils/time';
-import { QrCode } from './QrCode';
+import { LazyQrCode } from './LazyQrCode';
 
 interface PresenterViewProps {
   snapshot: EngineSnapshot;
@@ -67,7 +67,7 @@ export function PresenterView({
       {showQr && (
         <div className="presenter__qr">
           <div className="qr__frame">
-            <QrCode value={shareUrl} size={200} />
+            <LazyQrCode value={shareUrl} size={200} />
           </div>
           <div className="presenter__qr-label">Scan to open on your phone</div>
         </div>
@@ -90,7 +90,14 @@ export function PresenterView({
 
         {active && status !== 'finished' && (
           <>
-            <div className="presenter__eyebrow">
+            <div
+              className="presenter__eyebrow"
+              style={
+                active.section.color && !isOverrun
+                  ? { color: active.section.color }
+                  : undefined
+              }
+            >
               Now · {activeIndex + 1} of {timeline.length}
               {status === 'paused' && ' · paused'}
             </div>

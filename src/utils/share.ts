@@ -5,20 +5,33 @@ import { parseSession } from './sessionIO';
  * A compact, URL-safe encoding of an agenda so it can be shared as a link
  * (in the location hash) without a file. Uses a short wire form to keep URLs
  * as small as practical:
- *   { t: title, i: instructions, s: [[title, minutes, activity], ...] }
+ *   { t: title, i: instructions, s: [[title, minutes, activity, color?], ...] }
+ *
+ * Links may also carry `&view=agenda`, which opens the read-only attendee view.
  */
 
+type CompactRow = [string, number, string, string?];
 interface Compact {
   t?: string;
   i?: string;
-  s?: [string, number, string][];
+  s?: CompactRow[];
+}
+
+export interface DecodedShare {
+  session: SessionData;
+  /** True when the link requests the read-only attendee view. */
+  view: boolean;
 }
 
 function toCompact(session: SessionData): Compact {
   return {
     t: session.title,
     i: session.instructions,
-    s: session.sections.map((x) => [x.title, x.durationMinutes, x.activity]),
+    s: session.sections.map((x) =>
+      x.color
+        ? [x.title, x.durationMinutes, x.activity, x.color]
+        : [x.title, x.durationMinutes, x.activity],
+    ),
   };
 }
 
@@ -29,6 +42,7 @@ function fromCompact(c: Compact): SessionData {
         title: row?.[0],
         durationMinutes: row?.[1],
         activity: row?.[2],
+        color: row?.[3],
       }))
     : undefined;
   return parseSession({ title: c?.t, instructions: c?.i, sections });
@@ -53,23 +67,32 @@ export function encodeSessionToHash(session: SessionData): string {
   return 'agenda=' + base64UrlEncode(JSON.stringify(toCompact(session)));
 }
 
-/** Decode an agenda from a location hash (`#agenda=…`), or null if absent/invalid. */
-export function decodeSessionFromHash(hash: string): SessionData | null {
+/** Decode an agenda + view flag from a location hash, or null if absent/invalid. */
+export function decodeSessionFromHash(hash: string): DecodedShare | null {
   const match = /agenda=([^&]+)/.exec(hash || '');
   if (!match) return null;
   try {
     const json = base64UrlDecode(decodeURIComponent(match[1]));
-    return fromCompact(JSON.parse(json) as Compact);
+    const session = fromCompact(JSON.parse(json) as Compact);
+    const view = /(?:[#&?])view=agenda(?:&|$)/.test(hash);
+    return { session, view };
   } catch {
     return null;
   }
 }
 
-/** Build a full shareable URL for the current page + agenda. */
+function pageBase(): string {
+  return (
+    window.location.origin + window.location.pathname + window.location.search
+  );
+}
+
+/** Full-app link that loads the agenda into the editable app. */
 export function buildShareUrl(session: SessionData): string {
-  const base =
-    window.location.origin +
-    window.location.pathname +
-    window.location.search;
-  return `${base}#${encodeSessionToHash(session)}`;
+  return `${pageBase()}#${encodeSessionToHash(session)}`;
+}
+
+/** Read-only attendee-view link (what the QR and "share" action use). */
+export function buildViewUrl(session: SessionData): string {
+  return `${pageBase()}#${encodeSessionToHash(session)}&view=agenda`;
 }

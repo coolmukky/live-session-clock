@@ -1,5 +1,5 @@
 import type { EngineSnapshot } from '../types';
-import { formatClockShort, formatDuration } from '../utils/time';
+import { formatClockShortDated, formatDuration } from '../utils/time';
 
 /**
  * The hero panel: what the audience should be doing right now, with a big
@@ -53,8 +53,16 @@ export function CurrentActivity({ snapshot }: { snapshot: EngineSnapshot }) {
       ? ' hero--warning'
       : '';
 
+  // Tint the hero's accent bar with the active section's color (if any).
+  const color = active.section.color;
+  const heroStyle =
+    color && !isOverrun && !almostDone
+      ? ({ ['--accent']: color, ['--accent-2']: color } as React.CSSProperties)
+      : undefined;
+  const dayRef = active.clockStart ?? Date.now();
+
   return (
-    <section className={`hero${heroClass}`}>
+    <section className={`hero${heroClass}`} style={heroStyle}>
       <div className="hero__label">
         Now · section {activeIndex + 1} of {timeline.length}
         {status === 'paused' && <span className="hero__paused">paused</span>}
@@ -93,7 +101,9 @@ export function CurrentActivity({ snapshot }: { snapshot: EngineSnapshot }) {
       {next ? (
         <div className="hero__next">
           Up next: <strong>{next.section.title}</strong>
-          {next.clockStart != null && <> · {formatClockShort(next.clockStart)}</>}
+          {next.clockStart != null && (
+            <> · {formatClockShortDated(next.clockStart, dayRef)}</>
+          )}
         </div>
       ) : (
         <div className="hero__next">Last section — wrap up soon.</div>

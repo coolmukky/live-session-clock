@@ -1,5 +1,6 @@
 import type { SessionData, Section } from '../types';
 import { makeId } from './time';
+import { isHexColor } from './theme';
 
 const FILE_TYPE = 'live-session-clock/agenda';
 
@@ -46,6 +47,7 @@ export function parseSession(raw: unknown): SessionData {
       title: title.trim(),
       durationMinutes,
       activity: typeof sec.activity === 'string' ? sec.activity : '',
+      ...(isHexColor(sec.color) ? { color: sec.color } : {}),
     };
   });
 

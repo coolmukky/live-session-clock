@@ -26,6 +26,33 @@ export function formatClockShort(epoch: number): string {
   });
 }
 
+/** True if the two epochs fall on different calendar days (local time). */
+export function isDifferentDay(a: number, b: number): boolean {
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() !== db.getFullYear() ||
+    da.getMonth() !== db.getMonth() ||
+    da.getDate() !== db.getDate()
+  );
+}
+
+/**
+ * Short wall-clock time, with a short date appended when `epoch` lands on a
+ * different day than `reference` (so schedules crossing midnight stay clear),
+ * e.g. "12:10 AM (Fri)".
+ */
+export function formatClockShortDated(epoch: number, reference: number): string {
+  const time = formatClockShort(epoch);
+  if (!isDifferentDay(epoch, reference)) return time;
+  const day = new Date(epoch).toLocaleDateString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+  return `${time} (${day})`;
+}
+
 /** Format an epoch (ms) as a full date, e.g. "Thursday, July 30, 2026". */
 export function formatDate(epoch: number): string {
   return new Date(epoch).toLocaleDateString([], {

@@ -48,12 +48,18 @@ run-of-show that needs to stay on time.
   or share it later.
 - **Shareable link** — "Copy share link" encodes the whole agenda into a URL,
   so you can drop it in a calendar invite and it loads with no file needed.
-- **QR code** — turn that link into a QR that attendees can scan (off a
-  projected screen or the presenter view) to open the session and its timer on
-  their own phones.
+- **QR code → read-only attendee view** — turn that link into a QR that
+  attendees scan (off a projected screen or the presenter view) to open a clean,
+  **read-only** view of the session — title, instructions, and the color-coded
+  agenda — with an "Edit this agenda" button to jump into the full app.
+- **Per-section colors** — give each section a color that shows on the agenda,
+  the current-activity bar, the presenter view, and the attendee view.
+- **Live adjustments** — nudge the running section with **＋1 / −1 min** without
+  stopping, and a confirm guard on **Reset** so you can't wipe a live session by
+  accident. Clock labels show the date when a schedule crosses midnight.
 - **Installable & offline (PWA)** — install it as an app on desktop or mobile;
   a service worker caches it so it keeps working with no network (great for
-  kiosks and room screens).
+  kiosks and room screens), with a "new version available" refresh prompt.
 - **Pause / resume / reset**, total and remaining time, and a warning state in
   the final 30 seconds of each section.
 - **Keyboard shortcuts** — <kbd>Space</kbd> pause/resume (or start),
@@ -74,6 +80,13 @@ No accounts, no backend — it's a static site that runs entirely in the browser
 | A section running over its planned time | Fullscreen presenter view | Scan-to-open QR of the agenda |
 | :---: | :---: | :---: |
 | ![Overrun state — the section counts up in red and can be skipped](docs/overrun.png) | ![Fullscreen presenter view with a giant countdown](docs/presenter.png) | ![QR code dialog for sharing the agenda link](docs/qr.png) |
+
+### Read-only attendee view (what the QR opens)
+
+Scanning the QR (or opening a shared link) lands on a clean, color-coded,
+read-only view of the run-of-show — no editing or controls:
+
+![Read-only attendee view showing the color-coded agenda](docs/attendee.png)
 
 ## 🚀 Getting started
 
@@ -176,8 +189,10 @@ src/
     Controls.tsx          # start/pause/resume/skip/reset + present + toggles
     SettingsPanel.tsx     # theme, accent, chime, volume, share/import/export
     PresenterView.tsx     # fullscreen big-screen room view (+ share QR)
+    AttendeeView.tsx      # clean read-only view opened by a shared/QR link
     ReminderModal.tsx     # the pop-up announcement
     QrCode.tsx            # QR matrix -> single-path SVG
+    LazyQrCode.tsx        # code-split loader for the QR (keeps it out of the initial bundle)
     QrModal.tsx           # scan-to-open share dialog
   utils/
     time.ts               # formatting helpers

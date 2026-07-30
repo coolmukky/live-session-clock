@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import type { Section, SectionTiming } from '../types';
-import { formatClockShort, formatDuration, formatMinutes } from '../utils/time';
+import {
+  formatClockShortDated,
+  formatDuration,
+  formatMinutes,
+} from '../utils/time';
 import { SectionForm } from './SectionForm';
 
 interface AgendaProps {
@@ -29,6 +33,9 @@ export function Agenda({
 }: AgendaProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  // Reference day for cross-midnight labels: the session's first known start.
+  const dayRef =
+    timeline.find((t) => t.clockStart != null)?.clockStart ?? Date.now();
 
   return (
     <section className="agenda">
@@ -79,12 +86,26 @@ export function Agenda({
               key={section.id}
               className={`agenda__item agenda__item--${state}${
                 isOver ? ' agenda__item--overrun' : ''
-              }`}
+              }${section.color ? ' agenda__item--colored' : ''}`}
+              style={
+                section.color
+                  ? ({ ['--section-color']: section.color } as React.CSSProperties)
+                  : undefined
+              }
             >
               <div className="agenda__index">{i + 1}</div>
               <div className="agenda__body">
                 <div className="agenda__row">
-                  <span className="agenda__title">{section.title}</span>
+                  <span className="agenda__title">
+                    {section.color && (
+                      <span
+                        className="agenda__dot"
+                        style={{ background: section.color }}
+                        aria-hidden
+                      />
+                    )}
+                    {section.title}
+                  </span>
                   <span className={`badge badge--${isOver ? 'overrun' : state}`}>
                     {isOver ? 'over' : state}
                   </span>
@@ -96,8 +117,8 @@ export function Agenda({
                   <span>{formatMinutes(section.durationMinutes)}</span>
                   {t.clockStart != null && t.clockEnd != null && (
                     <span className="agenda__clock">
-                      {formatClockShort(t.clockStart)} –{' '}
-                      {formatClockShort(t.clockEnd)}
+                      {formatClockShortDated(t.clockStart, dayRef)} –{' '}
+                      {formatClockShortDated(t.clockEnd, dayRef)}
                     </span>
                   )}
                 </div>

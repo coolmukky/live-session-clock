@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Clock } from './components/Clock';
 import { Controls } from './components/Controls';
 import { CurrentActivity } from './components/CurrentActivity';
@@ -7,7 +7,10 @@ import { InstructionsPanel } from './components/InstructionsPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { PresenterView } from './components/PresenterView';
 import { ReminderModal, type Reminder } from './components/ReminderModal';
-import { QrModal } from './components/QrModal';
+import { AttendeeView } from './components/AttendeeView';
+
+// Code-split: the QR modal (and qrcode-generator) load only when shown.
+const QrModal = lazy(() => import('./components/QrModal'));
 import { DEFAULT_SESSION } from './defaultSession';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useNow } from './hooks/useNow';
@@ -21,7 +24,7 @@ import {
 } from './utils/alerts';
 import { applyTheme } from './utils/theme';
 import { exportSession, importSessionFile } from './utils/sessionIO';
-import { buildShareUrl, decodeSessionFromHash } from './utils/share';
+import { buildViewUrl, decodeSessionFromHash } from './utils/share';
 import { formatDuration } from './utils/time';
 
 const IDLE_RUN: RunState = {
@@ -58,6 +61,10 @@ export default function App() {
   const [presenter, setPresenter] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  // Read-only attendee view (opened by a shared/QR link with view=agenda).
+  const [attendee, setAttendee] = useState(false);
+  // Set true when a new service worker version is ready.
+  const [updateReady, setUpdateReady] = useState(false);
   // Screen-reader announcement, updated only on section change (not every tick).
   const [announcement, setAnnouncement] = useState('');
 
@@ -70,10 +77,11 @@ export default function App() {
   // Load an agenda shared via URL (#agenda=…) once on mount, then strip the
   // hash so edits persist to localStorage and a refresh doesn't re-apply it.
   useEffect(() => {
-    const shared = decodeSessionFromHash(window.location.hash);
-    if (shared) {
-      setSession(shared);
+    const decoded = decodeSessionFromHash(window.location.hash);
+    if (decoded) {
+      setSession(decoded.session);
       setRun(IDLE_RUN);
+      if (decoded.view) setAttendee(true);
       window.history.replaceState(
         null,
         '',
@@ -81,6 +89,13 @@ export default function App() {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Listen for a new deployed version (dispatched from the SW registration).
+  useEffect(() => {
+    const onUpdate = () => setUpdateReady(true);
+    window.addEventListener('lsc-sw-update', onUpdate);
+    return () => window.removeEventListener('lsc-sw-update', onUpdate);
   }, []);
 
   // --- Theme ---------------------------------------------------------------
@@ -249,10 +264,16 @@ export default function App() {
   }, [setRun]);
 
   const handleReset = useCallback(() => {
+    if (
+      (run.status === 'running' || run.status === 'paused') &&
+      !window.confirm('End the running session and reset the timer?')
+    ) {
+      return;
+    }
     lastKey.current = '';
     setReminder(null);
     setRun(IDLE_RUN);
-  }, [setRun]);
+  }, [run.status, setRun]);
 
   // --- Session editing -----------------------------------------------------
   const updateSession = useCallback(
@@ -291,6 +312,25 @@ export default function App() {
         return { ...s, sections: next };
       }),
     [setSession],
+  );
+
+  // Add/remove minutes on the currently-running section (min 1 minute).
+  const extendActive = useCallback(
+    (deltaMinutes: number) => {
+      const idx = run.currentIndex;
+      if (idx < 0) return;
+      setSession((s) => {
+        if (idx >= s.sections.length) return s;
+        const next = [...s.sections];
+        const cur = next[idx];
+        next[idx] = {
+          ...cur,
+          durationMinutes: Math.max(1, cur.durationMinutes + deltaMinutes),
+        };
+        return { ...s, sections: next };
+      });
+    },
+    [run.currentIndex, setSession],
   );
 
   // --- Settings ------------------------------------------------------------
@@ -333,6 +373,7 @@ export default function App() {
   // Space = pause/resume (or start), → = skip to next, P/F = presenter view.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (attendee) return; // shortcuts off in the read-only view
       const el = e.target as HTMLElement | null;
       if (
         el &&
@@ -373,6 +414,7 @@ export default function App() {
     run.status,
     canStart,
     presenter,
+    attendee,
     handleStart,
     handlePause,
     handleResume,
@@ -380,6 +422,16 @@ export default function App() {
     enterPresenter,
     exitPresenter,
   ]);
+
+  if (attendee) {
+    return (
+      <AttendeeView
+        session={session}
+        now={now}
+        onOpenApp={() => setAttendee(false)}
+      />
+    );
+  }
 
   return (
     <div className="app">
@@ -412,6 +464,7 @@ export default function App() {
             onNext={advance}
             onReset={handleReset}
             onPresent={enterPresenter}
+            onExtend={extendActive}
             onToggleSound={() => updateSettings({ sound: !settings.sound })}
             onToggleNotifications={() =>
               updateSettings({ notifications: !settings.notifications })
@@ -436,7 +489,7 @@ export default function App() {
             onImportFile={handleImport}
             importError={importError}
             canImport={editable}
-            buildShareUrl={() => buildShareUrl(session)}
+            buildShareUrl={() => buildViewUrl(session)}
             onShowQr={(url) => setQrUrl(url)}
           />
           <Agenda
@@ -472,14 +525,35 @@ export default function App() {
       </div>
 
       <ReminderModal reminder={reminder} onDismiss={() => setReminder(null)} />
-      {qrUrl && <QrModal url={qrUrl} onClose={() => setQrUrl(null)} />}
+      {qrUrl && (
+        <Suspense fallback={null}>
+          <QrModal url={qrUrl} onClose={() => setQrUrl(null)} />
+        </Suspense>
+      )}
       {presenter && (
         <PresenterView
           snapshot={snapshot}
           now={now}
-          shareUrl={buildShareUrl(session)}
+          shareUrl={buildViewUrl(session)}
           onExit={exitPresenter}
         />
+      )}
+      {updateReady && (
+        <div className="toast" role="status">
+          <span className="toast__text">A new version is available.</span>
+          <button
+            className="btn btn--primary btn--sm"
+            onClick={() => window.location.reload()}
+          >
+            Refresh
+          </button>
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={() => setUpdateReady(false)}
+          >
+            Later
+          </button>
+        </div>
       )}
     </div>
   );

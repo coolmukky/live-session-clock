@@ -6,21 +6,32 @@ const session: SessionData = {
   title: 'Workshop',
   instructions: 'Be nice',
   sections: [
-    { id: 'a', title: 'Welcome', durationMinutes: 10, activity: 'Say hi' },
+    { id: 'a', title: 'Welcome', durationMinutes: 10, activity: 'Say hi', color: '#10b981' },
     { id: 'b', title: 'Wörk 🚀', durationMinutes: 20, activity: 'Do it' },
   ],
 };
 
 describe('share encode/decode', () => {
-  it('round-trips an agenda through the URL hash', () => {
+  it('round-trips an agenda (incl. color) through the URL hash', () => {
     const hash = '#' + encodeSessionToHash(session);
     const decoded = decodeSessionFromHash(hash);
     expect(decoded).not.toBeNull();
-    expect(decoded!.title).toBe('Workshop');
-    expect(decoded!.instructions).toBe('Be nice');
-    expect(decoded!.sections.map((s) => s.title)).toEqual(['Welcome', 'Wörk 🚀']);
-    expect(decoded!.sections.map((s) => s.durationMinutes)).toEqual([10, 20]);
-    expect(decoded!.sections[1].activity).toBe('Do it');
+    expect(decoded!.session.title).toBe('Workshop');
+    expect(decoded!.session.instructions).toBe('Be nice');
+    expect(decoded!.session.sections.map((s) => s.title)).toEqual([
+      'Welcome',
+      'Wörk 🚀',
+    ]);
+    expect(decoded!.session.sections.map((s) => s.durationMinutes)).toEqual([10, 20]);
+    expect(decoded!.session.sections[0].color).toBe('#10b981');
+    expect(decoded!.session.sections[1].color).toBeUndefined();
+    expect(decoded!.view).toBe(false);
+  });
+
+  it('detects the read-only view flag', () => {
+    const hash = '#' + encodeSessionToHash(session) + '&view=agenda';
+    const decoded = decodeSessionFromHash(hash);
+    expect(decoded!.view).toBe(true);
   });
 
   it('produces a URL-safe payload (no +, /, or =)', () => {

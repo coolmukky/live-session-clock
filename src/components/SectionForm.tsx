@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Section } from '../types';
 import { makeId } from '../utils/time';
+import { SECTION_COLORS } from '../utils/theme';
 
 interface SectionFormProps {
   /** When provided, the form edits this section; otherwise it adds a new one. */
@@ -16,11 +17,13 @@ export function SectionForm({ initial, onSubmit, onCancel }: SectionFormProps) {
     initial ? String(initial.durationMinutes) : '10',
   );
   const [activity, setActivity] = useState(initial?.activity ?? '');
+  const [color, setColor] = useState<string | undefined>(initial?.color);
 
   useEffect(() => {
     setTitle(initial?.title ?? '');
     setDurationMinutes(initial ? String(initial.durationMinutes) : '10');
     setActivity(initial?.activity ?? '');
+    setColor(initial?.color);
   }, [initial]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -32,11 +35,13 @@ export function SectionForm({ initial, onSubmit, onCancel }: SectionFormProps) {
       title: title.trim(),
       durationMinutes: minutes,
       activity: activity.trim(),
+      ...(color ? { color } : {}),
     });
     if (!initial) {
       setTitle('');
       setDurationMinutes('10');
       setActivity('');
+      setColor(undefined);
     }
   };
 
@@ -80,6 +85,31 @@ export function SectionForm({ initial, onSubmit, onCancel }: SectionFormProps) {
           onChange={(e) => setActivity(e.target.value)}
         />
       </label>
+      <div className="field">
+        <span className="field__label">Color (optional)</span>
+        <div className="swatches">
+          <button
+            type="button"
+            className={`swatch swatch--none${!color ? ' is-active' : ''}`}
+            title="No color"
+            aria-label="No color"
+            onClick={() => setColor(undefined)}
+          >
+            ∅
+          </button>
+          {SECTION_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`swatch${color === c ? ' is-active' : ''}`}
+              style={{ background: c }}
+              title={c}
+              aria-label={`Color ${c}`}
+              onClick={() => setColor(c)}
+            />
+          ))}
+        </div>
+      </div>
       <div className="section-form__actions">
         <button type="submit" className="btn btn--primary" disabled={!valid}>
           {initial ? 'Save changes' : 'Add section'}

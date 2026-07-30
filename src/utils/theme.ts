@@ -18,7 +18,24 @@ export const ACCENTS: Accent[] = [
   { key: 'rose', label: 'Rose', color: '#f43f5e', strong: '#fb7185', secondary: '#f59e0b' },
 ];
 
+/** Preset colors offered for per-section accents. */
+export const SECTION_COLORS: string[] = [
+  '#6366f1',
+  '#22d3ee',
+  '#10b981',
+  '#f59e0b',
+  '#f43f5e',
+  '#8b5cf6',
+  '#0ea5e9',
+  '#ec4899',
+];
+
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/** True if `value` is a valid hex color string. */
+export function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && HEX.test(value);
+}
 
 /** Resolve a settings accent value (preset key or hex) to concrete colors. */
 export function resolveAccent(value: string): Accent {

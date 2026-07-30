@@ -12,6 +12,7 @@ interface ControlsProps {
   onNext: () => void;
   onReset: () => void;
   onPresent: () => void;
+  onExtend: (deltaMinutes: number) => void;
   onToggleSound: () => void;
   onToggleNotifications: () => void;
   onToggleAutoAdvance: () => void;
@@ -29,11 +30,13 @@ export function Controls({
   onNext,
   onReset,
   onPresent,
+  onExtend,
   onToggleSound,
   onToggleNotifications,
   onToggleAutoAdvance,
 }: ControlsProps) {
   const live = status === 'running' || status === 'paused';
+  const hasActive = snapshot.activeIndex >= 0;
   const isLast =
     snapshot.activeIndex >= 0 &&
     snapshot.activeIndex === snapshot.timeline.length - 1;
@@ -64,6 +67,24 @@ export function Controls({
           <button className="btn btn--lg" onClick={onNext}>
             {isLast ? '✓ Finish' : '⏭ Skip to next'}
           </button>
+        )}
+        {live && hasActive && (
+          <span className="controls__extend">
+            <button
+              className="btn"
+              title="Give the current section 1 more minute"
+              onClick={() => onExtend(1)}
+            >
+              ＋1 min
+            </button>
+            <button
+              className="btn"
+              title="Take a minute off the current section"
+              onClick={() => onExtend(-1)}
+            >
+              −1 min
+            </button>
+          </span>
         )}
         {(live || status === 'finished') && (
           <button className="btn btn--ghost btn--lg" onClick={onReset}>

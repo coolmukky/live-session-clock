@@ -19,6 +19,19 @@ export function qrMatrix(value: string): boolean[][] {
 }
 
 /**
+ * Like {@link qrMatrix} but returns null instead of throwing when the data is
+ * too large to fit in a QR code (very long share URLs). Lets the UI fall back
+ * to a copy-link message.
+ */
+export function safeQrMatrix(value: string): boolean[][] | null {
+  try {
+    return qrMatrix(value);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build a compact SVG `path` `d` string of the dark modules, merging runs of
  * consecutive dark cells in each row into a single rectangle. Coordinates are
  * offset by `quiet` modules for the required quiet zone.

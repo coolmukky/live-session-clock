@@ -8,6 +8,9 @@ export interface Section {
   /** What the audience should be doing during this section. Shown big and in
    *  the reminder pop-up when the section becomes active. */
   activity: string;
+  /** Optional accent color (hex) for this section on the agenda/hero/presenter.
+   *  Undefined falls back to the app accent. */
+  color?: string;
 }
 
 export interface SessionData {
