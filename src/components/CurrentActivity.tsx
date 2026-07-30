@@ -3,10 +3,12 @@ import { formatClockShort, formatDuration } from '../utils/time';
 
 /**
  * The hero panel: what the audience should be doing right now, with a big
- * countdown for the active section and a preview of what's next.
+ * countdown for the active section, an overrun state, and a preview of what's
+ * next.
  */
 export function CurrentActivity({ snapshot }: { snapshot: EngineSnapshot }) {
-  const { status, activeIndex, timeline, remainingInSection } = snapshot;
+  const { status, activeIndex, timeline, remainingInSection, overrunMs } =
+    snapshot;
 
   if (status === 'idle') {
     return (
@@ -33,18 +35,30 @@ export function CurrentActivity({ snapshot }: { snapshot: EngineSnapshot }) {
 
   const active = timeline[activeIndex];
   const next = timeline[activeIndex + 1];
-  const sectionDuration = active.offsetEnd - active.offsetStart;
-  const progress =
-    sectionDuration > 0
-      ? Math.min(100, (1 - remainingInSection / sectionDuration) * 100)
+  const isOverrun = overrunMs > 0;
+  const almostDone = !isOverrun && remainingInSection <= 30_000; // last 30s
+
+  const activeDuration =
+    active.clockStart != null && active.clockEnd != null
+      ? active.clockEnd - active.clockStart
       : 0;
-  const almostDone = remainingInSection <= 30_000; // last 30 seconds
+  const progress =
+    activeDuration > 0
+      ? Math.min(100, ((activeDuration - remainingInSection) / activeDuration) * 100)
+      : 0;
+
+  const heroClass = isOverrun
+    ? ' hero--overrun'
+    : almostDone
+      ? ' hero--warning'
+      : '';
 
   return (
-    <section className={`hero${almostDone ? ' hero--warning' : ''}`}>
+    <section className={`hero${heroClass}`}>
       <div className="hero__label">
         Now · section {activeIndex + 1} of {timeline.length}
         {status === 'paused' && <span className="hero__paused">paused</span>}
+        {isOverrun && <span className="hero__over-pill">over time</span>}
       </div>
       <div className="hero__title">{active.section.title}</div>
       {active.section.activity && (
@@ -52,22 +66,34 @@ export function CurrentActivity({ snapshot }: { snapshot: EngineSnapshot }) {
       )}
 
       <div className="hero__countdown">
-        <span className="hero__countdown-value">
-          {formatDuration(remainingInSection)}
-        </span>
-        <span className="hero__countdown-label">remaining</span>
+        {isOverrun ? (
+          <>
+            <span className="hero__countdown-value hero__countdown-value--over">
+              +{formatDuration(overrunMs)}
+            </span>
+            <span className="hero__countdown-label">over — wrap up / next</span>
+          </>
+        ) : (
+          <>
+            <span className="hero__countdown-value">
+              {formatDuration(remainingInSection)}
+            </span>
+            <span className="hero__countdown-label">remaining</span>
+          </>
+        )}
       </div>
 
       <div className="progress hero__progress">
-        <div className="progress__bar" style={{ width: `${progress}%` }} />
+        <div
+          className={`progress__bar${isOverrun ? ' progress__bar--over' : ''}`}
+          style={{ width: `${isOverrun ? 100 : progress}%` }}
+        />
       </div>
 
       {next ? (
         <div className="hero__next">
           Up next: <strong>{next.section.title}</strong>
-          {next.clockStart != null && (
-            <> · {formatClockShort(next.clockStart)}</>
-          )}
+          {next.clockStart != null && <> · {formatClockShort(next.clockStart)}</>}
         </div>
       ) : (
         <div className="hero__next">Last section — wrap up soon.</div>

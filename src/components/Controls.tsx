@@ -9,12 +9,15 @@ interface ControlsProps {
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
+  onNext: () => void;
   onReset: () => void;
+  onPresent: () => void;
   onToggleSound: () => void;
   onToggleNotifications: () => void;
+  onToggleAutoAdvance: () => void;
 }
 
-/** Start / pause / resume / reset plus session totals and alert toggles. */
+/** Start / pause / resume / skip / reset plus totals, present, and toggles. */
 export function Controls({
   status,
   snapshot,
@@ -23,10 +26,18 @@ export function Controls({
   onStart,
   onPause,
   onResume,
+  onNext,
   onReset,
+  onPresent,
   onToggleSound,
   onToggleNotifications,
+  onToggleAutoAdvance,
 }: ControlsProps) {
+  const live = status === 'running' || status === 'paused';
+  const isLast =
+    snapshot.activeIndex >= 0 &&
+    snapshot.activeIndex === snapshot.timeline.length - 1;
+
   return (
     <section className="controls">
       <div className="controls__buttons">
@@ -49,11 +60,23 @@ export function Controls({
             ▶ Resume
           </button>
         )}
-        {(status === 'running' || status === 'paused' || status === 'finished') && (
+        {live && (
+          <button className="btn btn--lg" onClick={onNext}>
+            {isLast ? '✓ Finish' : '⏭ Skip to next'}
+          </button>
+        )}
+        {(live || status === 'finished') && (
           <button className="btn btn--ghost btn--lg" onClick={onReset}>
             ⟲ Reset
           </button>
         )}
+        <button
+          className="btn btn--ghost btn--lg"
+          onClick={onPresent}
+          title="Fullscreen presenter view"
+        >
+          ⛶ Present
+        </button>
       </div>
 
       <div className="controls__stats">
@@ -73,11 +96,7 @@ export function Controls({
 
       <div className="controls__toggles">
         <label className="toggle">
-          <input
-            type="checkbox"
-            checked={settings.sound}
-            onChange={onToggleSound}
-          />
+          <input type="checkbox" checked={settings.sound} onChange={onToggleSound} />
           <span>🔔 Chime</span>
         </label>
         <label className="toggle">
@@ -87,6 +106,14 @@ export function Controls({
             onChange={onToggleNotifications}
           />
           <span>💬 Notifications</span>
+        </label>
+        <label className="toggle" title="Advance sections automatically at their planned end">
+          <input
+            type="checkbox"
+            checked={settings.autoAdvance}
+            onChange={onToggleAutoAdvance}
+          />
+          <span>⏱ Auto-advance</span>
         </label>
       </div>
     </section>

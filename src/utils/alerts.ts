@@ -1,5 +1,32 @@
-/** Play a short two-tone chime using the Web Audio API (no asset needed). */
-export function playChime(): void {
+import type { ChimeId } from '../types';
+
+export const CHIMES: { id: ChimeId; label: string }[] = [
+  { id: 'twoTone', label: 'Two-tone' },
+  { id: 'bell', label: 'Bell' },
+  { id: 'ding', label: 'Ding' },
+  { id: 'triad', label: 'Triad' },
+];
+
+// Frequencies (Hz) and note timing per chime.
+const RECIPES: Record<ChimeId, { freq: number; at: number; len: number }[]> = {
+  twoTone: [
+    { freq: 880, at: 0, len: 0.22 },
+    { freq: 1174.66, at: 0.18, len: 0.24 },
+  ],
+  bell: [
+    { freq: 1318.51, at: 0, len: 0.6 },
+    { freq: 2637.02, at: 0, len: 0.4 },
+  ],
+  ding: [{ freq: 1567.98, at: 0, len: 0.35 }],
+  triad: [
+    { freq: 523.25, at: 0, len: 0.5 },
+    { freq: 659.25, at: 0.12, len: 0.5 },
+    { freq: 783.99, at: 0.24, len: 0.5 },
+  ],
+};
+
+/** Play a short chime using the Web Audio API (no asset needed). */
+export function playChime(chime: ChimeId = 'twoTone', volume = 0.6): void {
   try {
     const AudioCtx =
       window.AudioContext ||
@@ -8,23 +35,24 @@ export function playChime(): void {
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
-    const notes = [880, 1174.66]; // A5 then D6
-    notes.forEach((freq, i) => {
+    const vol = Math.max(0, Math.min(1, volume)) * 0.4;
+    let end = now;
+    RECIPES[chime].forEach(({ freq, at, len }) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
+      osc.type = chime === 'bell' ? 'triangle' : 'sine';
       osc.frequency.value = freq;
-      const start = now + i * 0.18;
-      const end = start + 0.22;
+      const start = now + at;
+      const stop = start + len;
+      end = Math.max(end, stop);
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.35, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, stop);
       osc.connect(gain).connect(ctx.destination);
       osc.start(start);
-      osc.stop(end + 0.02);
+      osc.stop(stop + 0.02);
     });
-    // Close the context shortly after the sound finishes.
-    window.setTimeout(() => ctx.close().catch(() => {}), 800);
+    window.setTimeout(() => ctx.close().catch(() => {}), (end - now) * 1000 + 300);
   } catch {
     /* audio not available — ignore */
   }

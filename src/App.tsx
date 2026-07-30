@@ -4,6 +4,8 @@ import { Controls } from './components/Controls';
 import { CurrentActivity } from './components/CurrentActivity';
 import { Agenda } from './components/Agenda';
 import { InstructionsPanel } from './components/InstructionsPanel';
+import { SettingsPanel } from './components/SettingsPanel';
+import { PresenterView } from './components/PresenterView';
 import { ReminderModal, type Reminder } from './components/ReminderModal';
 import { DEFAULT_SESSION } from './defaultSession';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -15,11 +17,24 @@ import {
   requestNotificationPermission,
   showNotification,
 } from './utils/alerts';
+import { applyTheme } from './utils/theme';
+import { exportSession, importSessionFile } from './utils/sessionIO';
 
 const IDLE_RUN: RunState = {
   status: 'idle',
-  anchorStart: null,
+  currentIndex: -1,
+  sectionAnchor: null,
   frozenElapsed: 0,
+};
+
+const DEFAULT_SETTINGS: Settings = {
+  sound: true,
+  chime: 'twoTone',
+  volume: 0.6,
+  notifications: false,
+  autoAdvance: true,
+  accent: 'indigo',
+  theme: 'dark',
 };
 
 export default function App() {
@@ -27,18 +42,25 @@ export default function App() {
     'lsc.session',
     DEFAULT_SESSION,
   );
-  const [run, setRun] = useLocalStorage<RunState>('lsc.run', IDLE_RUN);
-  const [settings, setSettings] = useLocalStorage<Settings>('lsc.settings', {
-    sound: true,
-    notifications: false,
-  });
+  const [run, setRun] = useLocalStorage<RunState>('lsc.run.v2', IDLE_RUN);
+  const [settings, setSettings] = useLocalStorage<Settings>(
+    'lsc.settings.v2',
+    DEFAULT_SETTINGS,
+  );
 
   const now = useNow(250);
   const snapshot = useSessionEngine(session, run, now);
   const [reminder, setReminder] = useState<Reminder | null>(null);
+  const [presenter, setPresenter] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const editable = run.status === 'idle';
   const canStart = snapshot.total > 0;
+
+  // --- Theme ---------------------------------------------------------------
+  useEffect(() => {
+    applyTheme(settings.accent, settings.theme);
+  }, [settings.accent, settings.theme]);
 
   // --- Reminder + alert firing --------------------------------------------
   const lastKey = useRef<string>('');
@@ -48,8 +70,9 @@ export default function App() {
 
   const fireReminder = useCallback((r: Reminder) => {
     setReminder(r);
-    if (settingsRef.current.sound) playChime();
-    if (settingsRef.current.notifications) {
+    const s = settingsRef.current;
+    if (s.sound) playChime(s.chime, s.volume);
+    if (s.notifications) {
       if (r.kind === 'finished') {
         showNotification('Session complete', 'All sections have finished.');
       } else if (r.section) {
@@ -66,8 +89,8 @@ export default function App() {
     const finished = snapshot.status === 'finished';
 
     // On first render, prime the baseline without firing — but only when a
-    // session is already live (e.g. after a page refresh mid-session). If we
-    // start idle, leave the baseline empty so the first Start fires normally.
+    // session is already live (page refresh mid-session). Starting idle leaves
+    // the baseline empty so the first Start fires normally.
     if (!primed.current) {
       primed.current = true;
       if (running || finished) {
@@ -97,31 +120,58 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshot.status, snapshot.activeIndex]);
 
-  // Transition running -> finished once the clock passes the end.
-  useEffect(() => {
-    if (run.status === 'running' && snapshot.remainingTotal <= 0) {
-      setRun({ status: 'finished', anchorStart: null, frozenElapsed: snapshot.total });
-    }
-  }, [run.status, snapshot.remainingTotal, snapshot.total, setRun]);
-
   // --- Run controls --------------------------------------------------------
-  const handleStart = useCallback(() => {
-    if (settingsRef.current.notifications) {
-      void requestNotificationPermission();
+  const advance = useCallback(() => {
+    setRun((prev) => {
+      const next = prev.currentIndex + 1;
+      if (next >= session.sections.length) {
+        return { ...IDLE_RUN, status: 'finished' };
+      }
+      return {
+        status: 'running',
+        currentIndex: next,
+        sectionAnchor: Date.now(),
+        frozenElapsed: 0,
+      };
+    });
+  }, [setRun, session.sections.length]);
+
+  // Auto-advance at the planned end when enabled.
+  useEffect(() => {
+    if (
+      settings.autoAdvance &&
+      run.status === 'running' &&
+      snapshot.remainingInSection <= 0
+    ) {
+      advance();
     }
-    // Play a chime directly inside the click gesture so browsers unlock audio.
-    if (settingsRef.current.sound) playChime();
+  }, [settings.autoAdvance, run.status, snapshot.remainingInSection, advance]);
+
+  const handleStart = useCallback(() => {
+    if (settingsRef.current.notifications) void requestNotificationPermission();
+    // Play a chime inside the click gesture so browsers unlock audio.
+    if (settingsRef.current.sound)
+      playChime(settingsRef.current.chime, settingsRef.current.volume);
     lastKey.current = '';
-    setRun({ status: 'running', anchorStart: Date.now(), frozenElapsed: 0 });
-  }, [setRun]);
+    if (session.sections.length === 0) return;
+    setRun({
+      status: 'running',
+      currentIndex: 0,
+      sectionAnchor: Date.now(),
+      frozenElapsed: 0,
+    });
+  }, [setRun, session.sections.length]);
 
   const handlePause = useCallback(() => {
     setRun((prev) => {
       const elapsed =
-        prev.anchorStart != null ? Date.now() - prev.anchorStart : prev.frozenElapsed;
+        prev.sectionAnchor != null
+          ? Date.now() - prev.sectionAnchor
+          : prev.frozenElapsed;
       return {
+        ...prev,
         status: 'paused',
-        anchorStart: null,
+        sectionAnchor: null,
         frozenElapsed: Math.max(0, elapsed),
       };
     });
@@ -129,9 +179,9 @@ export default function App() {
 
   const handleResume = useCallback(() => {
     setRun((prev) => ({
+      ...prev,
       status: 'running',
-      anchorStart: Date.now() - prev.frozenElapsed,
-      frozenElapsed: prev.frozenElapsed,
+      sectionAnchor: Date.now() - prev.frozenElapsed,
     }));
   }, [setRun]);
 
@@ -146,13 +196,11 @@ export default function App() {
     (patch: Partial<SessionData>) => setSession((s) => ({ ...s, ...patch })),
     [setSession],
   );
-
   const addSection = useCallback(
     (section: Section) =>
       setSession((s) => ({ ...s, sections: [...s.sections, section] })),
     [setSession],
   );
-
   const updateSection = useCallback(
     (section: Section) =>
       setSession((s) => ({
@@ -161,7 +209,6 @@ export default function App() {
       })),
     [setSession],
   );
-
   const deleteSection = useCallback(
     (id: string) =>
       setSession((s) => ({
@@ -170,7 +217,6 @@ export default function App() {
       })),
     [setSession],
   );
-
   const moveSection = useCallback(
     (id: string, direction: -1 | 1) =>
       setSession((s) => {
@@ -185,18 +231,40 @@ export default function App() {
   );
 
   // --- Settings ------------------------------------------------------------
-  const toggleSound = useCallback(
-    () => setSettings((s) => ({ ...s, sound: !s.sound })),
+  const updateSettings = useCallback(
+    (patch: Partial<Settings>) => {
+      if (patch.notifications) void requestNotificationPermission();
+      setSettings((s) => ({ ...s, ...patch }));
+    },
     [setSettings],
   );
 
-  const toggleNotifications = useCallback(() => {
-    setSettings((s) => {
-      const next = !s.notifications;
-      if (next) void requestNotificationPermission();
-      return { ...s, notifications: next };
-    });
-  }, [setSettings]);
+  // --- Import / export -----------------------------------------------------
+  const handleExport = useCallback(() => exportSession(session), [session]);
+  const handleImport = useCallback(
+    (file: File) => {
+      setImportError(null);
+      importSessionFile(file)
+        .then((data) => {
+          setSession(data);
+          setRun(IDLE_RUN);
+        })
+        .catch((err: unknown) =>
+          setImportError(err instanceof Error ? err.message : 'Import failed.'),
+        );
+    },
+    [setSession, setRun],
+  );
+
+  // --- Presenter mode ------------------------------------------------------
+  const enterPresenter = useCallback(() => {
+    setPresenter(true);
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  }, []);
+  const exitPresenter = useCallback(() => {
+    setPresenter(false);
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  }, []);
 
   return (
     <div className="app">
@@ -226,9 +294,16 @@ export default function App() {
             onStart={handleStart}
             onPause={handlePause}
             onResume={handleResume}
+            onNext={advance}
             onReset={handleReset}
-            onToggleSound={toggleSound}
-            onToggleNotifications={toggleNotifications}
+            onPresent={enterPresenter}
+            onToggleSound={() => updateSettings({ sound: !settings.sound })}
+            onToggleNotifications={() =>
+              updateSettings({ notifications: !settings.notifications })
+            }
+            onToggleAutoAdvance={() =>
+              updateSettings({ autoAdvance: !settings.autoAdvance })
+            }
           />
         </div>
 
@@ -239,10 +314,19 @@ export default function App() {
             editable={editable}
             onChange={updateSession}
           />
+          <SettingsPanel
+            settings={settings}
+            onChange={updateSettings}
+            onExport={handleExport}
+            onImportFile={handleImport}
+            importError={importError}
+            canImport={editable}
+          />
           <Agenda
             timeline={snapshot.timeline}
             editable={editable}
-            now={now}
+            remainingInSection={snapshot.remainingInSection}
+            overrunMs={snapshot.overrunMs}
             onAdd={addSection}
             onUpdate={updateSection}
             onDelete={deleteSection}
@@ -262,6 +346,9 @@ export default function App() {
       </footer>
 
       <ReminderModal reminder={reminder} onDismiss={() => setReminder(null)} />
+      {presenter && (
+        <PresenterView snapshot={snapshot} now={now} onExit={exitPresenter} />
+      )}
     </div>
   );
 }

@@ -11,11 +11,11 @@ const MIN_MS = 60_000;
 /**
  * Pure derivation of the live session state for a given instant.
  *
- * The run is anchored to the wall clock: `elapsed = now - anchorStart` while
- * running, or the frozen value while paused/finished. Section boundaries are
- * cumulative offsets from the start, and each section's absolute start/end
- * clock time is `anchorStart + offset`. This is what keeps the agenda synced
- * to the real clock and lets a refreshed page resume exactly where it was.
+ * Each section is timed independently and anchored to the wall clock: while
+ * running, `sectionElapsed = now - sectionAnchor`. A section can run past its
+ * planned length (overrun) — upcoming sections are then projected forward from
+ * "now", so the schedule shifts to stay honest. When the session is idle the
+ * agenda is previewed as if it started now.
  */
 export function useSessionEngine(
   session: SessionData,
@@ -24,73 +24,89 @@ export function useSessionEngine(
 ): EngineSnapshot {
   return useMemo(() => {
     const { sections } = session;
-    const total = sections.reduce(
-      (sum, s) => sum + Math.max(0, s.durationMinutes) * MIN_MS,
-      0,
-    );
-
-    // Raw elapsed based on the run state.
-    let elapsed: number;
-    if (run.status === 'running' && run.anchorStart != null) {
-      elapsed = now - run.anchorStart;
-    } else {
-      elapsed = run.frozenElapsed;
-    }
-    elapsed = Math.min(Math.max(elapsed, 0), total);
-
-    // Build cumulative timeline.
-    const timeline: SectionTiming[] = [];
-    let cursor = 0;
-    let activeIndex = -1;
+    const durations = sections.map((s) => Math.max(0, s.durationMinutes) * MIN_MS);
+    const total = durations.reduce((a, b) => a + b, 0);
 
     const isLive = run.status === 'running' || run.status === 'paused';
-    // Anchor used to project absolute clock times. When idle we preview the
-    // schedule as if it started "now".
-    const anchor =
-      run.anchorStart != null
-        ? run.anchorStart
-        : run.status === 'idle'
-          ? now
-          : null;
+    const activeIndex = isLive ? run.currentIndex : -1;
 
-    sections.forEach((section, i) => {
-      const dur = Math.max(0, section.durationMinutes) * MIN_MS;
-      const offsetStart = cursor;
-      const offsetEnd = cursor + dur;
-      cursor = offsetEnd;
+    // Elapsed within the active section.
+    let sectionElapsed = 0;
+    if (activeIndex >= 0) {
+      sectionElapsed =
+        run.status === 'running' && run.sectionAnchor != null
+          ? now - run.sectionAnchor
+          : run.frozenElapsed;
+      sectionElapsed = Math.max(0, sectionElapsed);
+    }
 
-      let state: SectionTiming['state'] = 'upcoming';
-      if (run.status === 'finished' || elapsed >= total) {
+    const activeDuration = activeIndex >= 0 ? durations[activeIndex] : 0;
+    const remainingInSection =
+      activeIndex >= 0 ? Math.max(0, activeDuration - sectionElapsed) : 0;
+    const overrunMs =
+      activeIndex >= 0 ? Math.max(0, sectionElapsed - activeDuration) : 0;
+
+    // Projected wall-clock start for the section *after* the active one.
+    // If we're overrunning, treat the current section as ending "now".
+    let projection = now + remainingInSection;
+
+    const timeline: SectionTiming[] = sections.map((section, i) => {
+      let state: SectionTiming['state'];
+      let clockStart: number | null = null;
+      let clockEnd: number | null = null;
+
+      if (run.status === 'finished') {
         state = 'done';
-      } else if (isLive && elapsed >= offsetStart && elapsed < offsetEnd) {
+      } else if (run.status === 'idle') {
+        state = 'upcoming';
+      } else if (i < activeIndex) {
+        state = 'done';
+      } else if (i === activeIndex) {
         state = 'active';
-        activeIndex = i;
-      } else if (isLive && elapsed >= offsetEnd) {
-        state = 'done';
+        // Actual start of the active section; planned end from its duration.
+        clockStart =
+          run.sectionAnchor != null ? run.sectionAnchor : now - sectionElapsed;
+        clockEnd = clockStart + durations[i];
+      } else {
+        state = 'upcoming';
+        clockStart = projection;
+        clockEnd = projection + durations[i];
+        projection = clockEnd;
       }
 
-      timeline.push({
-        section,
-        offsetStart,
-        offsetEnd,
-        clockStart: anchor != null ? anchor + offsetStart : null,
-        clockEnd: anchor != null ? anchor + offsetEnd : null,
-        state,
-      });
+      return { section, state, clockStart, clockEnd };
     });
 
-    const remainingTotal = Math.max(0, total - elapsed);
-    const remainingInSection =
-      activeIndex >= 0 ? timeline[activeIndex].offsetEnd - elapsed : 0;
+    // Idle preview: lay the whole agenda out starting now.
+    if (run.status === 'idle') {
+      let cursor = now;
+      timeline.forEach((t, i) => {
+        t.clockStart = cursor;
+        t.clockEnd = cursor + durations[i];
+        cursor = t.clockEnd;
+      });
+    }
+
+    // Remaining across the current (excluding overrun) + all upcoming sections.
+    let remainingTotal = 0;
+    if (isLive && activeIndex >= 0) {
+      remainingTotal = remainingInSection;
+      for (let i = activeIndex + 1; i < durations.length; i++) {
+        remainingTotal += durations[i];
+      }
+    } else if (run.status === 'idle') {
+      remainingTotal = total;
+    }
 
     return {
       status: run.status,
-      elapsed,
-      total,
       activeIndex,
       timeline,
-      remainingInSection: Math.max(0, remainingInSection),
+      sectionElapsed,
+      remainingInSection,
+      overrunMs,
       remainingTotal,
+      total,
     };
   }, [session, run, now]);
 }

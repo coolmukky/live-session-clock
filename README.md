@@ -20,7 +20,7 @@ run-of-show that needs to stay on time.
 - **Instructions for participants** — a free-text panel for house rules, links,
   or a welcome message. Editable before you start, then locked on screen.
 - **Session breakdown with per-section timers** — build an agenda of sections,
-  each with its own duration and an "what to do now" activity note.
+  each with its own duration and a "what to do now" activity note.
 - **Add / edit / reorder sections** — set how long each one is; the schedule
   recalculates instantly.
 - **Synced to the clock** — press **Start** and every section is anchored to the
@@ -28,12 +28,31 @@ run-of-show that needs to stay on time.
 - **Reminder pop-ups** — when a section becomes active, a full-screen reminder
   announces it to the audience, with an optional **chime** and **browser
   notification**, so nobody misses the switch.
+- **Overrun handling** — when a section runs long it turns **red** and counts up
+  (`+M:SS` "over time") instead of silently moving on. Hit **Skip to next** to
+  advance whenever you're ready.
+- **Auto-advance toggle** — keep a strict clock-driven schedule (sections roll
+  over automatically at their planned end), or turn it off to hold-and-overrun.
+- **Fullscreen presenter mode** — a giant projector-friendly view (current
+  activity + huge countdown + clock) for the room, one click away (`Esc` exits).
+- **Sound choices** — pick from several chimes with a volume slider and a test
+  button.
+- **Theming** — light / dark mode plus a set of accent colors (or a custom
+  color) so it matches your event's look.
+- **Import / export agendas (JSON)** — save a run-of-show to a file and reload
+  or share it later.
 - **Pause / resume / reset**, total and remaining time, and a warning state in
   the final 30 seconds of each section.
 - **Auto-saved & refresh-safe** — your agenda and a running session are stored
   in the browser, so a reload picks up right where you left off.
 
 No accounts, no backend — it's a static site that runs entirely in the browser.
+
+### Overrun & presenter mode
+
+| A section running over its planned time | Fullscreen presenter view |
+| :---: | :---: |
+| ![Overrun state — the section counts up in red and can be skipped](docs/overrun.png) | ![Fullscreen presenter view with a giant countdown](docs/presenter.png) |
 
 ## 🚀 Getting started
 
@@ -50,17 +69,24 @@ npm run preview # preview the production build
 
 1. **Set up** (before starting): edit the session title and participant
    instructions, then add your sections — each with a name, a length in minutes,
-   and a note describing what participants should be doing.
+   and a note describing what participants should be doing. Open **Appearance,
+   sound & files** to pick a theme/accent, choose a chime, or import a saved
+   agenda.
 2. **Start**: press **Start session**. The agenda locks and syncs to the clock;
    the hero panel shows the current section and a countdown.
 3. **Run**: as each section begins, a reminder pop-up appears (with an optional
-   chime/notification). **Pause/Resume** as needed; the whole schedule shifts.
+   chime/notification). **Pause/Resume** as needed; **Skip to next** to move on
+   early or once a section is over; **Present** for the fullscreen room view.
 4. **Finish**: when the last section ends you'll get a "session complete"
    pop-up. **Reset** to run it again or make edits.
 
-Toggle the **chime** and **browser notifications** from the controls bar.
-(Notifications ask for permission the first time and work best when the tab is
-in the background.)
+**Auto-advance** (in the controls bar) is on by default — sections roll over at
+their planned end for a strict schedule. Turn it off if you'd rather each
+section wait for you and show overrun until you press **Skip to next**.
+
+Toggle the **chime**, **browser notifications**, and **auto-advance** from the
+controls bar. (Notifications ask for permission the first time and work best
+when the tab is in the background.)
 
 ## 🌐 Deploying (GitHub Pages)
 
@@ -85,24 +111,28 @@ folder.
 
 ```
 src/
-  App.tsx                 # orchestrates state, run controls, reminders
+  App.tsx                 # orchestrates state, run controls, reminders, theming
   types.ts                # shared types
   defaultSession.ts       # sample agenda shown on first load
   hooks/
     useNow.ts             # single ticking clock source
     useLocalStorage.ts    # persistence + cross-tab sync
-    useSessionEngine.ts   # derives the live timeline from session + run state
+    useSessionEngine.ts   # derives the live timeline (incl. overrun) from state
   components/
     Clock.tsx             # live wall clock
-    CurrentActivity.tsx   # hero: what to do now + countdown
+    CurrentActivity.tsx   # hero: what to do now + countdown / overrun
     Agenda.tsx            # section list, add/edit/reorder
     SectionForm.tsx       # add/edit a section
     InstructionsPanel.tsx # participant instructions
-    Controls.tsx          # start/pause/resume/reset + toggles
+    Controls.tsx          # start/pause/resume/skip/reset + present + toggles
+    SettingsPanel.tsx     # theme, accent, chime, volume, import/export
+    PresenterView.tsx     # fullscreen big-screen room view
     ReminderModal.tsx     # the pop-up announcement
   utils/
     time.ts               # formatting helpers
-    alerts.ts             # chime + browser notifications
+    alerts.ts             # chimes + browser notifications
+    theme.ts              # accent presets + light/dark application
+    sessionIO.ts          # agenda import/export + validation
 ```
 
 ## 📄 License

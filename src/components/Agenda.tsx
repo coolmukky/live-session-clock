@@ -7,7 +7,10 @@ interface AgendaProps {
   timeline: SectionTiming[];
   /** Editing is only allowed before the session starts (idle). */
   editable: boolean;
-  now: number;
+  /** ms left in the active section (for the active row). */
+  remainingInSection: number;
+  /** ms the active section is over (for the active row). */
+  overrunMs: number;
   onUpdate: (section: Section) => void;
   onDelete: (id: string) => void;
   onMove: (id: string, direction: -1 | 1) => void;
@@ -17,7 +20,8 @@ interface AgendaProps {
 export function Agenda({
   timeline,
   editable,
-  now,
+  remainingInSection,
+  overrunMs,
   onUpdate,
   onDelete,
   onMove,
@@ -64,21 +68,26 @@ export function Agenda({
               </li>
             );
           }
-          const duration = t.offsetEnd - t.offsetStart;
+          const duration = section.durationMinutes * 60_000;
+          const isOver = state === 'active' && overrunMs > 0;
           const sectionProgress =
             state === 'active' && duration > 0
-              ? Math.min(
-                  100,
-                  Math.max(0, ((now - (t.clockStart ?? now)) / duration) * 100),
-                )
+              ? Math.min(100, ((duration - remainingInSection) / duration) * 100)
               : 0;
           return (
-            <li key={section.id} className={`agenda__item agenda__item--${state}`}>
+            <li
+              key={section.id}
+              className={`agenda__item agenda__item--${state}${
+                isOver ? ' agenda__item--overrun' : ''
+              }`}
+            >
               <div className="agenda__index">{i + 1}</div>
               <div className="agenda__body">
                 <div className="agenda__row">
                   <span className="agenda__title">{section.title}</span>
-                  <span className={`badge badge--${state}`}>{state}</span>
+                  <span className={`badge badge--${isOver ? 'overrun' : state}`}>
+                    {isOver ? 'over' : state}
+                  </span>
                 </div>
                 {section.activity && (
                   <p className="agenda__activity">{section.activity}</p>
@@ -95,8 +104,8 @@ export function Agenda({
                 {state === 'active' && (
                   <div className="progress agenda__progress">
                     <div
-                      className="progress__bar"
-                      style={{ width: `${sectionProgress}%` }}
+                      className={`progress__bar${isOver ? ' progress__bar--over' : ''}`}
+                      style={{ width: `${isOver ? 100 : sectionProgress}%` }}
                     />
                   </div>
                 )}
@@ -135,9 +144,9 @@ export function Agenda({
                   </button>
                 </div>
               )}
-              {!editable && state === 'active' && t.clockEnd != null && (
-                <div className="agenda__remaining">
-                  {formatDuration(Math.max(0, t.clockEnd - now))}
+              {!editable && state === 'active' && (
+                <div className={`agenda__remaining${isOver ? ' agenda__remaining--over' : ''}`}>
+                  {isOver ? `+${formatDuration(overrunMs)}` : formatDuration(remainingInSection)}
                 </div>
               )}
             </li>
