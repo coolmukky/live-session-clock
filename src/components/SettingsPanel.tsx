@@ -13,6 +13,8 @@ interface SettingsPanelProps {
   canImport: boolean;
   /** Builds a shareable URL that encodes the current agenda. */
   buildShareUrl: () => string;
+  /** Opens the QR dialog for the given URL. */
+  onShowQr: (url: string) => void;
 }
 
 export function SettingsPanel({
@@ -23,6 +25,7 @@ export function SettingsPanel({
   importError,
   canImport,
   buildShareUrl,
+  onShowQr,
 }: SettingsPanelProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -136,6 +139,12 @@ export function SettingsPanel({
             <div className="settings__row">
               <button className="btn btn--ghost btn--sm" onClick={handleShare}>
                 {copied ? '✓ Link copied' : '🔗 Copy share link'}
+              </button>
+              <button
+                className="btn btn--ghost btn--sm"
+                onClick={() => onShowQr(buildShareUrl())}
+              >
+                ▦ QR code
               </button>
               <button className="btn btn--ghost btn--sm" onClick={onExport}>
                 ⬇ Export JSON

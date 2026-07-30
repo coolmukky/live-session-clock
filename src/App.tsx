@@ -7,6 +7,7 @@ import { InstructionsPanel } from './components/InstructionsPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { PresenterView } from './components/PresenterView';
 import { ReminderModal, type Reminder } from './components/ReminderModal';
+import { QrModal } from './components/QrModal';
 import { DEFAULT_SESSION } from './defaultSession';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useNow } from './hooks/useNow';
@@ -55,6 +56,7 @@ export default function App() {
   const snapshot = useSessionEngine(session, run, now);
   const [reminder, setReminder] = useState<Reminder | null>(null);
   const [presenter, setPresenter] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   // Screen-reader announcement, updated only on section change (not every tick).
   const [announcement, setAnnouncement] = useState('');
@@ -435,6 +437,7 @@ export default function App() {
             importError={importError}
             canImport={editable}
             buildShareUrl={() => buildShareUrl(session)}
+            onShowQr={(url) => setQrUrl(url)}
           />
           <Agenda
             timeline={snapshot.timeline}
@@ -469,8 +472,14 @@ export default function App() {
       </div>
 
       <ReminderModal reminder={reminder} onDismiss={() => setReminder(null)} />
+      {qrUrl && <QrModal url={qrUrl} onClose={() => setQrUrl(null)} />}
       {presenter && (
-        <PresenterView snapshot={snapshot} now={now} onExit={exitPresenter} />
+        <PresenterView
+          snapshot={snapshot}
+          now={now}
+          shareUrl={buildShareUrl(session)}
+          onExit={exitPresenter}
+        />
       )}
     </div>
   );

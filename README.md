@@ -48,6 +48,9 @@ run-of-show that needs to stay on time.
   or share it later.
 - **Shareable link** — "Copy share link" encodes the whole agenda into a URL,
   so you can drop it in a calendar invite and it loads with no file needed.
+- **QR code** — turn that link into a QR that attendees can scan (off a
+  projected screen or the presenter view) to open the session and its timer on
+  their own phones.
 - **Installable & offline (PWA)** — install it as an app on desktop or mobile;
   a service worker caches it so it keeps working with no network (great for
   kiosks and room screens).
@@ -66,11 +69,11 @@ run-of-show that needs to stay on time.
 
 No accounts, no backend — it's a static site that runs entirely in the browser.
 
-### Overrun & presenter mode
+### Overrun, presenter & share-by-QR
 
-| A section running over its planned time | Fullscreen presenter view |
-| :---: | :---: |
-| ![Overrun state — the section counts up in red and can be skipped](docs/overrun.png) | ![Fullscreen presenter view with a giant countdown](docs/presenter.png) |
+| A section running over its planned time | Fullscreen presenter view | Scan-to-open QR of the agenda |
+| :---: | :---: | :---: |
+| ![Overrun state — the section counts up in red and can be skipped](docs/overrun.png) | ![Fullscreen presenter view with a giant countdown](docs/presenter.png) | ![QR code dialog for sharing the agenda link](docs/qr.png) |
 
 ## 🚀 Getting started
 
@@ -137,9 +140,11 @@ folder.
 ## 🛠️ Tech
 
 - [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
-- [Vite](https://vitejs.dev/) for dev/build
-- No runtime dependencies beyond React — timers use the Web Audio and
-  Notifications APIs directly.
+- [Vite](https://vitejs.dev/) for dev/build, [Vitest](https://vitest.dev/) for tests
+- Only one small runtime dependency beyond React —
+  [`qrcode-generator`](https://www.npmjs.com/package/qrcode-generator) for the
+  QR code. Timers, chimes, offline caching, and notifications use the Web
+  Audio, Service Worker, and Notifications APIs directly.
 
 ## 📁 Project structure
 
@@ -163,15 +168,18 @@ src/
     SectionForm.tsx       # add/edit a section
     InstructionsPanel.tsx # participant instructions
     Controls.tsx          # start/pause/resume/skip/reset + present + toggles
-    SettingsPanel.tsx     # theme, accent, chime, volume, import/export
-    PresenterView.tsx     # fullscreen big-screen room view
+    SettingsPanel.tsx     # theme, accent, chime, volume, share/import/export
+    PresenterView.tsx     # fullscreen big-screen room view (+ share QR)
     ReminderModal.tsx     # the pop-up announcement
+    QrCode.tsx            # QR matrix -> single-path SVG
+    QrModal.tsx           # scan-to-open share dialog
   utils/
     time.ts               # formatting helpers
     alerts.ts             # chimes + browser notifications
     theme.ts              # accent presets + light/dark application
     sessionIO.ts          # agenda import/export + validation
     share.ts              # encode/decode an agenda into a shareable URL
+    qr.ts                 # QR encoding (matrix + compact SVG path)
 
 public/
   manifest.webmanifest    # PWA manifest

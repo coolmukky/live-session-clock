@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { EngineSnapshot } from '../types';
 import { formatClock, formatDuration } from '../utils/time';
+import { QrCode } from './QrCode';
 
 interface PresenterViewProps {
   snapshot: EngineSnapshot;
   now: number;
+  shareUrl: string;
   onExit: () => void;
 }
 
@@ -12,14 +14,24 @@ interface PresenterViewProps {
  * A minimal, big-screen view for projecting to the room: the current activity,
  * a giant countdown, and the live clock. Toggled from the controls.
  */
-export function PresenterView({ snapshot, now, onExit }: PresenterViewProps) {
+export function PresenterView({
+  snapshot,
+  now,
+  shareUrl,
+  onExit,
+}: PresenterViewProps) {
+  const [showQr, setShowQr] = useState(false);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onExit();
+      if (e.key === 'Escape') {
+        if (showQr) setShowQr(false);
+        else onExit();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onExit]);
+  }, [onExit, showQr]);
 
   const { status, activeIndex, timeline, remainingInSection, overrunMs } =
     snapshot;
@@ -38,10 +50,28 @@ export function PresenterView({ snapshot, now, onExit }: PresenterViewProps) {
     <div className={`presenter${stateClass}`}>
       <div className="presenter__top">
         <div className="presenter__clock">{formatClock(now)}</div>
-        <button className="btn btn--ghost presenter__exit" onClick={onExit}>
-          ✕ Exit (Esc)
-        </button>
+        <div className="presenter__actions">
+          <button
+            className="btn btn--ghost"
+            onClick={() => setShowQr((v) => !v)}
+            aria-pressed={showQr}
+          >
+            ▦ {showQr ? 'Hide QR' : 'Share QR'}
+          </button>
+          <button className="btn btn--ghost presenter__exit" onClick={onExit}>
+            ✕ Exit (Esc)
+          </button>
+        </div>
       </div>
+
+      {showQr && (
+        <div className="presenter__qr">
+          <div className="qr__frame">
+            <QrCode value={shareUrl} size={200} />
+          </div>
+          <div className="presenter__qr-label">Scan to open on your phone</div>
+        </div>
+      )}
 
       <div className="presenter__center">
         {status === 'idle' && (

@@ -1099,3 +1099,58 @@ kbd {
   justify-content: center;
   flex-wrap: wrap;
 }
+
+/* ===================================================================== */
+/* QR code (share)                                                       */
+/* ===================================================================== */
+.modal--qr {
+  max-width: 420px;
+}
+.qr {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+.qr__frame {
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 14px;
+  width: fit-content;
+  margin: 6px auto 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.qr__url {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.qr__url .field__input {
+  flex: 1;
+  font-size: 12px;
+}
+
+/* Presenter QR overlay */
+.presenter__actions {
+  display: flex;
+  gap: 10px;
+}
+.presenter__qr {
+  position: absolute;
+  top: clamp(72px, 12vh, 120px);
+  right: clamp(20px, 4vw, 48px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+}
+.presenter__qr .qr__frame {
+  margin: 0;
+}
+.presenter__qr-label {
+  color: var(--text-dim);
+  font-size: clamp(13px, 1.6vw, 18px);
+  font-weight: 600;
+  text-align: center;
+}
