@@ -8,7 +8,11 @@ when each section begins.
 Great for workshops, webinars, classes, standups, hackathons, exams, and any
 run-of-show that needs to stay on time.
 
-<!-- Add a screenshot or GIF here once deployed -->
+![Live Session Clock — running dashboard with live clock, current-activity countdown, and synced agenda](docs/running.png)
+
+> When each section begins, a pop-up announces it to the audience (with an optional chime and browser notification):
+>
+> ![Reminder pop-up announcing the current section](docs/reminder.png)
 
 ## ✨ Features
 
