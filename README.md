@@ -1,5 +1,8 @@
 # ⏱ Live Session Clock
 
+[![Live demo](https://img.shields.io/badge/Live_demo-coolmukky.github.io-6366f1?style=for-the-badge&logo=github)](https://coolmukky.github.io/live-session-clock/)
+[![Deploy to GitHub Pages](https://github.com/coolmukky/live-session-clock/actions/workflows/deploy.yml/badge.svg)](https://github.com/coolmukky/live-session-clock/actions/workflows/deploy.yml)
+
 A live clock and **session-timer tool for facilitators, trainers, and hosts**.
 Build a timed agenda, sync it to the real wall clock, and let the app tell your
 audience exactly **what they should be doing right now** — with pop-up reminders
@@ -7,6 +10,8 @@ when each section begins.
 
 Great for workshops, webinars, classes, standups, hackathons, exams, and any
 run-of-show that needs to stay on time.
+
+**▶ Try it live: [coolmukky.github.io/live-session-clock](https://coolmukky.github.io/live-session-clock/)**
 
 ![Live Session Clock — running dashboard with live clock, current-activity countdown, and synced agenda](docs/running.png)
 
