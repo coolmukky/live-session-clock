@@ -1,6 +1,6 @@
 # ⏱ Live Session Clock
 
-[![Live demo](https://img.shields.io/badge/Live_demo-Open_app-6366f1?style=for-the-badge&logo=cloudflare)](https://live-session-clock.coolmukky.workers.dev/)
+[![Live demo](https://img.shields.io/badge/Live_demo-Open_app-6366f1?style=for-the-badge&logo=github)](https://coolmukky.github.io/live-session-clock/)
 [![Deploy to GitHub Pages](https://github.com/coolmukky/live-session-clock/actions/workflows/deploy.yml/badge.svg)](https://github.com/coolmukky/live-session-clock/actions/workflows/deploy.yml)
 
 A live clock and **session-timer tool for facilitators, trainers, and hosts**.
@@ -11,7 +11,7 @@ when each section begins.
 Great for workshops, webinars, classes, standups, hackathons, exams, and any
 run-of-show that needs to stay on time.
 
-**▶ Try it live: [live-session-clock.coolmukky.workers.dev](https://live-session-clock.coolmukky.workers.dev/)**
+**▶ Try it live: [coolmukky.github.io/live-session-clock](https://coolmukky.github.io/live-session-clock/)**
 
 ![Live Session Clock — running dashboard with live clock, current-activity countdown, and synced agenda](docs/running.png)
 
@@ -131,16 +131,17 @@ The Vite `base` is `./` (relative), so the same build runs at a domain root or
 a sub-path — any static host works. Build command: `npm run build`, output
 directory: `dist`.
 
-**Cloudflare (primary — [live-session-clock.coolmukky.workers.dev](https://live-session-clock.coolmukky.workers.dev/)):**
-this repo is connected to a Cloudflare build with build command `npm run build`
-and output directory `dist`. Node version is pinned via
-[`.node-version`](.node-version); cache headers live in
-[`public/_headers`](public/_headers). Every push to `main` redeploys.
-
-**GitHub Pages (mirror):** a GitHub Actions workflow
+**GitHub Pages (live — [coolmukky.github.io/live-session-clock](https://coolmukky.github.io/live-session-clock/)):**
+a GitHub Actions workflow
 ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)) runs the tests
 and publishes on every push to `main`. Enable it under **Settings → Pages →
 Source → GitHub Actions**.
+
+**Netlify / Vercel / Cloudflare Pages (for a username-free subdomain):** import
+the repo and deploy — [`netlify.toml`](netlify.toml),
+[`.node-version`](.node-version), and [`public/_headers`](public/_headers) are
+included, so it's zero-config (build `npm run build`, output `dist`). These give
+a URL like `live-session-clock.netlify.app`.
 
 ## 🛠️ Tech
 
