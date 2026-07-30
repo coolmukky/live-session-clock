@@ -11,6 +11,8 @@ interface SettingsPanelProps {
   importError: string | null;
   /** Import replaces the agenda, so only allow it before the session starts. */
   canImport: boolean;
+  /** Builds a shareable URL that encodes the current agenda. */
+  buildShareUrl: () => string;
 }
 
 export function SettingsPanel({
@@ -20,9 +22,23 @@ export function SettingsPanel({
   onImportFile,
   importError,
   canImport,
+  buildShareUrl,
 }: SettingsPanelProps) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleShare = async () => {
+    const url = buildShareUrl();
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked (e.g. insecure context) — fall back to a prompt.
+      window.prompt('Copy this shareable link:', url);
+    }
+  };
 
   return (
     <section className="settings">
@@ -114,10 +130,13 @@ export function SettingsPanel({
             </div>
           </div>
 
-          {/* Import / export */}
+          {/* Share / import / export */}
           <div className="settings__group">
-            <span className="field__label">Agenda file</span>
+            <span className="field__label">Share &amp; agenda files</span>
             <div className="settings__row">
+              <button className="btn btn--ghost btn--sm" onClick={handleShare}>
+                {copied ? '✓ Link copied' : '🔗 Copy share link'}
+              </button>
               <button className="btn btn--ghost btn--sm" onClick={onExport}>
                 ⬇ Export JSON
               </button>
@@ -143,6 +162,9 @@ export function SettingsPanel({
                 }}
               />
             </div>
+            <p className="settings__mini settings__hint">
+              The share link encodes this agenda in the URL — no file needed.
+            </p>
             {importError && <p className="settings__error">{importError}</p>}
           </div>
         </div>

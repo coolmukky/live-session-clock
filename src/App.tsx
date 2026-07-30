@@ -20,6 +20,7 @@ import {
 } from './utils/alerts';
 import { applyTheme } from './utils/theme';
 import { exportSession, importSessionFile } from './utils/sessionIO';
+import { buildShareUrl, decodeSessionFromHash } from './utils/share';
 import { formatDuration } from './utils/time';
 
 const IDLE_RUN: RunState = {
@@ -63,6 +64,22 @@ export default function App() {
 
   // Keep the screen awake while a session is actively running.
   useWakeLock(run.status === 'running');
+
+  // Load an agenda shared via URL (#agenda=…) once on mount, then strip the
+  // hash so edits persist to localStorage and a refresh doesn't re-apply it.
+  useEffect(() => {
+    const shared = decodeSessionFromHash(window.location.hash);
+    if (shared) {
+      setSession(shared);
+      setRun(IDLE_RUN);
+      window.history.replaceState(
+        null,
+        '',
+        window.location.pathname + window.location.search,
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // --- Theme ---------------------------------------------------------------
   useEffect(() => {
@@ -417,6 +434,7 @@ export default function App() {
             onImportFile={handleImport}
             importError={importError}
             canImport={editable}
+            buildShareUrl={() => buildShareUrl(session)}
           />
           <Agenda
             timeline={snapshot.timeline}

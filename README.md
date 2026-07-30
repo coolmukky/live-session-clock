@@ -46,6 +46,11 @@ run-of-show that needs to stay on time.
   color) so it matches your event's look.
 - **Import / export agendas (JSON)** — save a run-of-show to a file and reload
   or share it later.
+- **Shareable link** — "Copy share link" encodes the whole agenda into a URL,
+  so you can drop it in a calendar invite and it loads with no file needed.
+- **Installable & offline (PWA)** — install it as an app on desktop or mobile;
+  a service worker caches it so it keeps working with no network (great for
+  kiosks and room screens).
 - **Pause / resume / reset**, total and remaining time, and a warning state in
   the final 30 seconds of each section.
 - **Keyboard shortcuts** — <kbd>Space</kbd> pause/resume (or start),
@@ -74,9 +79,23 @@ No accounts, no backend — it's a static site that runs entirely in the browser
 ```bash
 npm install     # install dependencies
 npm run dev     # start the dev server (http://localhost:5173)
+npm test        # run the unit tests (Vitest)
 npm run build   # type-check and build to dist/
 npm run preview # preview the production build
 ```
+
+### Tests
+
+Unit tests cover the pure timing engine (`computeSnapshot` — overrun math,
+projections, remaining time), agenda import validation, and share-link
+encode/decode. Run them with `npm test`; they also run in CI on every push
+before the site is deployed.
+
+### Install as an app / offline
+
+It's a PWA: open the live site and use your browser's **Install** option
+(desktop) or **Add to Home Screen** (mobile). Once loaded, a service worker
+caches the app so it runs offline — handy for a room screen with flaky Wi-Fi.
 
 ## 🖥️ How to use
 
@@ -127,8 +146,10 @@ folder.
 ```
 src/
   App.tsx                 # orchestrates state, run controls, reminders, theming
+  engine.ts               # pure computeSnapshot() — the testable timing core
   types.ts                # shared types
   defaultSession.ts       # sample agenda shown on first load
+  *.test.ts               # Vitest unit tests (engine, sessionIO, share)
   hooks/
     useNow.ts             # single ticking clock source
     useLocalStorage.ts    # persistence + cross-tab sync
@@ -150,6 +171,12 @@ src/
     alerts.ts             # chimes + browser notifications
     theme.ts              # accent presets + light/dark application
     sessionIO.ts          # agenda import/export + validation
+    share.ts              # encode/decode an agenda into a shareable URL
+
+public/
+  manifest.webmanifest    # PWA manifest
+  sw.js                   # service worker (offline caching)
+  icon-*.png              # app icons
 ```
 
 ## 📄 License

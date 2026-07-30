@@ -14,3 +14,15 @@ createRoot(rootEl).render(
     </ErrorBoundary>
   </StrictMode>,
 );
+
+// Register the service worker for offline / installable PWA support.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register(`${import.meta.env.BASE_URL}sw.js`)
+      .catch(() => {
+        /* SW registration is best-effort */
+      });
+  });
+}
+
