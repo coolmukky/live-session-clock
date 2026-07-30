@@ -48,8 +48,16 @@ run-of-show that needs to stay on time.
   or share it later.
 - **Pause / resume / reset**, total and remaining time, and a warning state in
   the final 30 seconds of each section.
+- **Keyboard shortcuts** — <kbd>Space</kbd> pause/resume (or start),
+  <kbd>→</kbd> skip to next, <kbd>P</kbd> presenter view.
+- **Stays awake & always in view** — a Screen Wake Lock keeps the display on
+  while running, and the current countdown shows in the **browser tab title**.
+- **Accessible** — the reminder pop-up traps and restores focus, section
+  changes are announced to screen readers, and animations respect
+  `prefers-reduced-motion`.
 - **Auto-saved & refresh-safe** — your agenda and a running session are stored
-  in the browser, so a reload picks up right where you left off.
+  in the browser, so a reload picks up right where you left off. A built-in
+  error boundary keeps a stray bug from taking the whole session down.
 
 No accounts, no backend — it's a static site that runs entirely in the browser.
 
@@ -82,6 +90,8 @@ npm run preview # preview the production build
 3. **Run**: as each section begins, a reminder pop-up appears (with an optional
    chime/notification). **Pause/Resume** as needed; **Skip to next** to move on
    early or once a section is over; **Present** for the fullscreen room view.
+   Keyboard: <kbd>Space</kbd> pause/resume, <kbd>→</kbd> next, <kbd>P</kbd>
+   present.
 4. **Finish**: when the last section ends you'll get a "session complete"
    pop-up. **Reset** to run it again or make edits.
 
@@ -123,8 +133,10 @@ src/
     useNow.ts             # single ticking clock source
     useLocalStorage.ts    # persistence + cross-tab sync
     useSessionEngine.ts   # derives the live timeline (incl. overrun) from state
+    useWakeLock.ts        # keeps the screen awake while running
   components/
     Clock.tsx             # live wall clock
+    ErrorBoundary.tsx     # crash fallback with reload / clear-data
     CurrentActivity.tsx   # hero: what to do now + countdown / overrun
     Agenda.tsx            # section list, add/edit/reorder
     SectionForm.tsx       # add/edit a section

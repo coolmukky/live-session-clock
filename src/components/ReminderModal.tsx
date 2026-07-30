@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Section } from '../types';
 import { formatMinutes } from '../utils/time';
 
@@ -25,19 +25,47 @@ export function ReminderModal({
   onDismiss,
   autoDismissMs = 12_000,
 }: ReminderModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     if (!reminder || autoDismissMs <= 0) return;
     const id = window.setTimeout(onDismiss, autoDismissMs);
     return () => window.clearTimeout(id);
   }, [reminder, autoDismissMs, onDismiss]);
 
+  // Focus management: move focus into the dialog, trap Tab within it, and
+  // restore focus to the previously-focused element on close.
   useEffect(() => {
     if (!reminder) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    buttonRef.current?.focus();
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDismiss();
+      if (e.key === 'Escape') {
+        onDismiss();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusables || focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      previouslyFocused?.focus?.();
+    };
   }, [reminder, onDismiss]);
 
   if (!reminder) return null;
@@ -47,6 +75,7 @@ export function ReminderModal({
   return (
     <div className="modal-backdrop" onClick={onDismiss} role="presentation">
       <div
+        ref={dialogRef}
         className={`modal${finished ? ' modal--done' : ''}`}
         role="dialog"
         aria-modal="true"
@@ -87,7 +116,11 @@ export function ReminderModal({
           </>
         )}
 
-        <button className="btn btn--primary modal__button" onClick={onDismiss}>
+        <button
+          ref={buttonRef}
+          className="btn btn--primary modal__button"
+          onClick={onDismiss}
+        >
           Got it
         </button>
       </div>

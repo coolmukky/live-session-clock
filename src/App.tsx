@@ -11,6 +11,7 @@ import { DEFAULT_SESSION } from './defaultSession';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useNow } from './hooks/useNow';
 import { useSessionEngine } from './hooks/useSessionEngine';
+import { useWakeLock } from './hooks/useWakeLock';
 import type { RunState, Section, SessionData, Settings } from './types';
 import {
   playChime,
@@ -19,6 +20,7 @@ import {
 } from './utils/alerts';
 import { applyTheme } from './utils/theme';
 import { exportSession, importSessionFile } from './utils/sessionIO';
+import { formatDuration } from './utils/time';
 
 const IDLE_RUN: RunState = {
   status: 'idle',
@@ -53,14 +55,49 @@ export default function App() {
   const [reminder, setReminder] = useState<Reminder | null>(null);
   const [presenter, setPresenter] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  // Screen-reader announcement, updated only on section change (not every tick).
+  const [announcement, setAnnouncement] = useState('');
 
   const editable = run.status === 'idle';
   const canStart = snapshot.total > 0;
+
+  // Keep the screen awake while a session is actively running.
+  useWakeLock(run.status === 'running');
 
   // --- Theme ---------------------------------------------------------------
   useEffect(() => {
     applyTheme(settings.accent, settings.theme);
   }, [settings.accent, settings.theme]);
+
+  // --- Browser tab title reflects the live countdown -----------------------
+  useEffect(() => {
+    const base = 'Live Session Clock';
+    let title = base;
+    if (snapshot.status === 'running' || snapshot.status === 'paused') {
+      const name =
+        snapshot.activeIndex >= 0
+          ? snapshot.timeline[snapshot.activeIndex].section.title
+          : '';
+      const time =
+        snapshot.overrunMs > 0
+          ? `+${formatDuration(snapshot.overrunMs)}`
+          : formatDuration(snapshot.remainingInSection);
+      const paused = snapshot.status === 'paused' ? '⏸ ' : '';
+      title = `${paused}${time} · ${name}`;
+    } else if (snapshot.status === 'finished') {
+      title = `✓ Complete · ${base}`;
+    }
+    document.title = title;
+    return () => {
+      document.title = base;
+    };
+  }, [
+    snapshot.status,
+    snapshot.activeIndex,
+    snapshot.remainingInSection,
+    snapshot.overrunMs,
+    snapshot.timeline,
+  ]);
 
   // --- Reminder + alert firing --------------------------------------------
   const lastKey = useRef<string>('');
@@ -71,6 +108,13 @@ export default function App() {
   const fireReminder = useCallback((r: Reminder) => {
     setReminder(r);
     const s = settingsRef.current;
+    if (r.kind === 'finished') {
+      setAnnouncement('Session complete. All sections have finished.');
+    } else if (r.section) {
+      setAnnouncement(
+        `Now: ${r.section.title}. ${r.section.activity || ''}`.trim(),
+      );
+    }
     if (s.sound) playChime(s.chime, s.volume);
     if (s.notifications) {
       if (r.kind === 'finished') {
@@ -266,6 +310,58 @@ export default function App() {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   }, []);
 
+  // --- Keyboard shortcuts --------------------------------------------------
+  // Space = pause/resume (or start), → = skip to next, P/F = presenter view.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(el.tagName) ||
+          el.isContentEditable)
+      ) {
+        return; // don't hijack typing or button activation
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      switch (e.key) {
+        case ' ':
+        case 'Spacebar':
+          e.preventDefault();
+          if (run.status === 'running') handlePause();
+          else if (run.status === 'paused') handleResume();
+          else if (run.status === 'idle' && canStart) handleStart();
+          break;
+        case 'ArrowRight':
+          if (run.status === 'running' || run.status === 'paused') {
+            e.preventDefault();
+            advance();
+          }
+          break;
+        case 'p':
+        case 'P':
+        case 'f':
+        case 'F':
+          e.preventDefault();
+          if (presenter) exitPresenter();
+          else enterPresenter();
+          break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [
+    run.status,
+    canStart,
+    presenter,
+    handleStart,
+    handlePause,
+    handleResume,
+    advance,
+    enterPresenter,
+    exitPresenter,
+  ]);
+
   return (
     <div className="app">
       <header className="app__header">
@@ -343,7 +439,16 @@ export default function App() {
 
       <footer className="app__footer">
         Times sync to your device clock · your agenda is saved in this browser.
+        <span className="app__shortcuts">
+          {' '}· Shortcuts: <kbd>Space</kbd> pause · <kbd>→</kbd> next ·{' '}
+          <kbd>P</kbd> present
+        </span>
       </footer>
+
+      {/* Screen-reader-only live region: announces each section change. */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </div>
 
       <ReminderModal reminder={reminder} onDismiss={() => setReminder(null)} />
       {presenter && (
