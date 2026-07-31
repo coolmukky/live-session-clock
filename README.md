@@ -156,6 +156,53 @@ the repo and deploy — [`netlify.toml`](netlify.toml),
 included, so it's zero-config (build `npm run build`, output `dist`). These give
 a URL like `live-session-clock.netlify.app`.
 
+## 🐳 Run with Docker
+
+Self-host a container copy — no Node needed on the host. Included:
+[`Dockerfile`](Dockerfile) (multi-stage build → nginx),
+[`nginx.conf`](nginx.conf), and [`docker-compose.yml`](docker-compose.yml).
+
+```bash
+# with Docker Compose
+docker compose up --build        # → http://localhost:8080
+
+# or plain Docker
+docker build -t live-session-clock .
+docker run -p 8080:80 live-session-clock   # → http://localhost:8080
+```
+
+## 🧑‍🤝‍🧑 Make your own copy
+
+Spin up your own instance on your own account:
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/coolmukky/live-session-clock)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/coolmukky/live-session-clock)
+
+- **One-click deploy** — the buttons above create a live copy on your Netlify or
+  Vercel account (no terminal needed).
+- **Use this template** — click **"Use this template"** on the repo for a fresh
+  copy with no history. *(Owner: enable it under Settings → General → Template
+  repository.)*
+- **Fork** — click **Fork** for an editable copy you can push and deploy.
+- **Download** — **Code → Download ZIP**, or grab a prebuilt bundle from
+  [Releases](https://github.com/coolmukky/live-session-clock/releases) and host
+  the files anywhere.
+
+## 💾 Backup & releases
+
+Every `git clone` is a full backup, but for durable, versioned snapshots:
+
+- **Releases** — tagged versions (e.g. `v1.0.0`) keep a permanent source
+  archive; each release also attaches a **prebuilt `dist.zip`** you can host
+  directly with no build step. See
+  [Releases](https://github.com/coolmukky/live-session-clock/releases).
+- **Full offline mirror:**
+  ```bash
+  git clone --mirror https://github.com/coolmukky/live-session-clock.git
+  ```
+  Keep that folder on a drive or cloud storage, or push it to another host
+  (GitLab, Codeberg) so you're not solely dependent on GitHub.
+
 ## 🛠️ Tech
 
 - [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
