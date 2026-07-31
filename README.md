@@ -18,12 +18,20 @@ run-of-show that needs to stay on time.
 
 ![Live Session Clock — running dashboard with live clock, current-activity countdown, and synced agenda](docs/running.png)
 
+> Plan multiple events and switch between them from the top bar — each with its own agenda:
+>
+> ![Events library bar with an event selector and New / Duplicate / Delete actions](docs/events.png)
+
 > When each section begins, a pop-up announces it to the audience (with an optional chime and browser notification):
 >
 > ![Reminder pop-up announcing the current section](docs/reminder.png)
 
 ## ✨ Features
 
+- **Multiple events (agenda library)** — plan and save many events, then
+  **switch**, **duplicate**, or **delete** them from the top bar. Each event has
+  its own agenda; you run one at a time. Import and shared links add new events
+  instead of overwriting your current one.
 - **Live clock** — a big, always-on wall clock so everyone shares the same time.
 - **Instructions for participants** — a free-text panel for house rules, links,
   or a welcome message. Editable before you start, then locked on screen.
@@ -221,16 +229,19 @@ Every `git clone` is a full backup, but for durable, versioned snapshots:
 src/
   App.tsx                 # orchestrates state, run controls, reminders, theming
   engine.ts               # pure computeSnapshot() — the testable timing core
+  library.ts              # pure events-library ops (create/duplicate/delete/…)
   types.ts                # shared types
   defaultSession.ts       # sample agenda shown on first load
-  *.test.ts               # Vitest unit tests (engine, sessionIO, share)
+  *.test.ts               # Vitest unit tests (engine, library, sessionIO, share, qr)
   hooks/
     useNow.ts             # single ticking clock source
     useLocalStorage.ts    # persistence + cross-tab sync
+    useLibrary.ts         # events library persistence (active event + actions)
     useSessionEngine.ts   # derives the live timeline (incl. overrun) from state
     useWakeLock.ts        # keeps the screen awake while running
   components/
     Clock.tsx             # live wall clock
+    EventsBar.tsx         # events library switcher (select / new / duplicate / delete)
     ErrorBoundary.tsx     # crash fallback with reload / clear-data
     CurrentActivity.tsx   # hero: what to do now + countdown / overrun
     Agenda.tsx            # section list, add/edit/reorder

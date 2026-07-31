@@ -22,6 +22,18 @@ export interface SessionData {
   sections: Section[];
 }
 
+/** One saved event/agenda in the presenter's library. Its name is its title. */
+export interface LibraryEvent {
+  id: string;
+  session: SessionData;
+}
+
+/** The whole library of events plus which one is active. */
+export interface Library {
+  activeId: string;
+  events: LibraryEvent[];
+}
+
 export type RunStatus = 'idle' | 'running' | 'paused' | 'finished';
 
 export interface RunState {

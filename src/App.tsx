@@ -11,8 +11,9 @@ import { AttendeeView } from './components/AttendeeView';
 
 // Code-split: the QR modal (and qrcode-generator) load only when shown.
 const QrModal = lazy(() => import('./components/QrModal'));
-import { DEFAULT_SESSION } from './defaultSession';
+import { EventsBar } from './components/EventsBar';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { useLibrary } from './hooks/useLibrary';
 import { useNow } from './hooks/useNow';
 import { useSessionEngine } from './hooks/useSessionEngine';
 import { useWakeLock } from './hooks/useWakeLock';
@@ -45,10 +46,16 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 export default function App() {
-  const [session, setSession] = useLocalStorage<SessionData>(
-    'lsc.session',
-    DEFAULT_SESSION,
-  );
+  const {
+    session,
+    setSession,
+    events,
+    activeId,
+    selectEvent,
+    createEvent,
+    duplicateEvent,
+    deleteEvent,
+  } = useLibrary();
   const [run, setRun] = useLocalStorage<RunState>('lsc.run.v2', IDLE_RUN);
   const [settings, setSettings] = useLocalStorage<Settings>(
     'lsc.settings.v2',
@@ -63,6 +70,7 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   // Read-only attendee view (opened by a shared/QR link with view=agenda).
   const [attendee, setAttendee] = useState(false);
+  const [attendeeSession, setAttendeeSession] = useState<SessionData | null>(null);
   // Set true when a new service worker version is ready.
   const [updateReady, setUpdateReady] = useState(false);
   // Screen-reader announcement, updated only on section change (not every tick).
@@ -79,9 +87,15 @@ export default function App() {
   useEffect(() => {
     const decoded = decodeSessionFromHash(window.location.hash);
     if (decoded) {
-      setSession(decoded.session);
-      setRun(IDLE_RUN);
-      if (decoded.view) setAttendee(true);
+      if (decoded.view) {
+        // Read-only attendee view: show it without touching the library.
+        setAttendeeSession(decoded.session);
+        setAttendee(true);
+      } else {
+        // Full-app share: add it as a new event so nothing is overwritten.
+        createEvent(decoded.session);
+        setRun(IDLE_RUN);
+      }
       window.history.replaceState(
         null,
         '',
@@ -90,6 +104,19 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Switching to a different event resets the timer (you run one at a time).
+  const eventPrimed = useRef(false);
+  useEffect(() => {
+    if (!eventPrimed.current) {
+      eventPrimed.current = true; // don't reset on initial mount (refresh-safe)
+      return;
+    }
+    lastKey.current = '';
+    setReminder(null);
+    setRun(IDLE_RUN);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
 
   // Listen for a new deployed version (dispatched from the SW registration).
   useEffect(() => {
@@ -349,15 +376,34 @@ export default function App() {
       setImportError(null);
       importSessionFile(file)
         .then((data) => {
-          setSession(data);
+          // Import as a new event so the current one isn't overwritten.
+          createEvent(data);
           setRun(IDLE_RUN);
         })
         .catch((err: unknown) =>
           setImportError(err instanceof Error ? err.message : 'Import failed.'),
         );
     },
-    [setSession, setRun],
+    [createEvent, setRun],
   );
+
+  // Event management (the timer resets via the activeId effect above).
+  const handleDeleteEvent = useCallback(
+    (id: string) => {
+      if (events.length <= 1) return;
+      if (window.confirm('Delete this event? This cannot be undone.')) {
+        deleteEvent(id);
+      }
+    },
+    [events.length, deleteEvent],
+  );
+
+  // Open the currently-viewed (attendee) agenda in the full app as a new event.
+  const openAttendeeInApp = useCallback(() => {
+    if (attendeeSession) createEvent(attendeeSession);
+    setAttendee(false);
+    setAttendeeSession(null);
+  }, [attendeeSession, createEvent]);
 
   // --- Presenter mode ------------------------------------------------------
   const enterPresenter = useCallback(() => {
@@ -426,9 +472,9 @@ export default function App() {
   if (attendee) {
     return (
       <AttendeeView
-        session={session}
+        session={attendeeSession ?? session}
         now={now}
-        onOpenApp={() => setAttendee(false)}
+        onOpenApp={openAttendeeInApp}
       />
     );
   }
@@ -449,6 +495,16 @@ export default function App() {
         </div>
         <Clock now={now} />
       </header>
+
+      <EventsBar
+        events={events}
+        activeId={activeId}
+        disabled={!editable}
+        onSelect={selectEvent}
+        onNew={() => createEvent()}
+        onDuplicate={duplicateEvent}
+        onDelete={handleDeleteEvent}
+      />
 
       <main className="app__main">
         <div className="app__primary">
