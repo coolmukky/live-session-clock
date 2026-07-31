@@ -1,7 +1,10 @@
 # ⏱ Live Session Clock
 
 [![Live demo](https://img.shields.io/badge/Live_demo-Open_app-6366f1?style=for-the-badge&logo=github)](https://coolmukky.github.io/live-session-clock/)
+
 [![Deploy to GitHub Pages](https://github.com/coolmukky/live-session-clock/actions/workflows/deploy.yml/badge.svg)](https://github.com/coolmukky/live-session-clock/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-34d399.svg)](LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-6366f1.svg)](CONTRIBUTING.md)
 
 A live clock and **session-timer tool for facilitators, trainers, and hosts**.
 Build a timed agenda, sync it to the real wall clock, and let the app tell your
